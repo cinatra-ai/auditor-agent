@@ -1,0 +1,502 @@
+{
+  "agentspec_version": "26.1.0",
+  "component_type": "Flow",
+  "id": "auditor-flow",
+  "name": "Auditor Agent",
+  "description": "Runs installed/explicit skills against a parent agent's data, surfaces structured suggestions for human review, and deterministically applies the accepted patches.",
+  "metadata": {
+    "cinatra": {
+      "type": "flow",
+      "packageName": "@cinatra-ai/auditor-agent",
+      "packageVersion": "0.1.4",
+      "docsRef": "docs/developer/wayflow-input-message-node-contract.md",
+      "hitlScreens": [
+        "@cinatra-ai/auditor-agent:review"
+      ]
+    }
+  },
+  "inputs": [
+    {
+      "title": "data",
+      "type": "object"
+    },
+    {
+      "title": "parentPackageName",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "title": "cinatra_run_id",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "title": "skillIds",
+      "type": "array",
+      "default": []
+    }
+  ],
+  "outputs": [
+    {
+      "title": "mutatedData",
+      "type": "object"
+    }
+  ],
+  "start_node": {
+    "$component_ref": "start"
+  },
+  "nodes": [
+    {
+      "$component_ref": "start"
+    },
+    {
+      "$component_ref": "resolve_skills"
+    },
+    {
+      "$component_ref": "run_skills"
+    },
+    {
+      "$component_ref": "review_gate"
+    },
+    {
+      "$component_ref": "apply_patches"
+    },
+    {
+      "$component_ref": "end"
+    }
+  ],
+  "control_flow_connections": [
+    {
+      "component_type": "ControlFlowEdge",
+      "name": "start_to_resolve_skills",
+      "from_node": {
+        "$component_ref": "start"
+      },
+      "to_node": {
+        "$component_ref": "resolve_skills"
+      }
+    },
+    {
+      "component_type": "ControlFlowEdge",
+      "name": "resolve_skills_to_run_skills",
+      "from_node": {
+        "$component_ref": "resolve_skills"
+      },
+      "to_node": {
+        "$component_ref": "run_skills"
+      }
+    },
+    {
+      "component_type": "ControlFlowEdge",
+      "name": "run_skills_to_review_gate",
+      "from_node": {
+        "$component_ref": "run_skills"
+      },
+      "to_node": {
+        "$component_ref": "review_gate"
+      }
+    },
+    {
+      "component_type": "ControlFlowEdge",
+      "name": "review_gate_to_apply_patches",
+      "from_node": {
+        "$component_ref": "review_gate"
+      },
+      "to_node": {
+        "$component_ref": "apply_patches"
+      }
+    },
+    {
+      "component_type": "ControlFlowEdge",
+      "name": "apply_patches_to_end",
+      "from_node": {
+        "$component_ref": "apply_patches"
+      },
+      "to_node": {
+        "$component_ref": "end"
+      }
+    }
+  ],
+  "data_flow_connections": [
+    {
+      "component_type": "DataFlowEdge",
+      "name": "start_to_resolve_skills_agent_run_id",
+      "source_node": {
+        "$component_ref": "start"
+      },
+      "source_output": "cinatra_run_id",
+      "destination_node": {
+        "$component_ref": "resolve_skills"
+      },
+      "destination_input": "agent_run_id"
+    },
+    {
+      "component_type": "DataFlowEdge",
+      "name": "start_to_resolve_skills_parentPackageName",
+      "source_node": {
+        "$component_ref": "start"
+      },
+      "source_output": "parentPackageName",
+      "destination_node": {
+        "$component_ref": "resolve_skills"
+      },
+      "destination_input": "parentPackageName"
+    },
+    {
+      "component_type": "DataFlowEdge",
+      "name": "start_to_resolve_skills_skillIds",
+      "source_node": {
+        "$component_ref": "start"
+      },
+      "source_output": "skillIds",
+      "destination_node": {
+        "$component_ref": "resolve_skills"
+      },
+      "destination_input": "skillIds"
+    },
+    {
+      "component_type": "DataFlowEdge",
+      "name": "start_to_resolve_skills_data",
+      "source_node": {
+        "$component_ref": "start"
+      },
+      "source_output": "data",
+      "destination_node": {
+        "$component_ref": "resolve_skills"
+      },
+      "destination_input": "data"
+    },
+    {
+      "component_type": "DataFlowEdge",
+      "name": "start_to_run_skills_agent_run_id",
+      "source_node": {
+        "$component_ref": "start"
+      },
+      "source_output": "cinatra_run_id",
+      "destination_node": {
+        "$component_ref": "run_skills"
+      },
+      "destination_input": "agent_run_id"
+    },
+    {
+      "component_type": "DataFlowEdge",
+      "name": "start_to_run_skills_parentPackageName",
+      "source_node": {
+        "$component_ref": "start"
+      },
+      "source_output": "parentPackageName",
+      "destination_node": {
+        "$component_ref": "run_skills"
+      },
+      "destination_input": "parentPackageName"
+    },
+    {
+      "component_type": "DataFlowEdge",
+      "name": "resolve_skills_to_run_skills_skillIds",
+      "source_node": {
+        "$component_ref": "resolve_skills"
+      },
+      "source_output": "skillIds",
+      "destination_node": {
+        "$component_ref": "run_skills"
+      },
+      "destination_input": "skillIds"
+    },
+    {
+      "component_type": "DataFlowEdge",
+      "name": "start_to_run_skills_data",
+      "source_node": {
+        "$component_ref": "start"
+      },
+      "source_output": "data",
+      "destination_node": {
+        "$component_ref": "run_skills"
+      },
+      "destination_input": "data"
+    },
+    {
+      "component_type": "DataFlowEdge",
+      "name": "start_to_apply_patches_agent_run_id",
+      "source_node": {
+        "$component_ref": "start"
+      },
+      "source_output": "cinatra_run_id",
+      "destination_node": {
+        "$component_ref": "apply_patches"
+      },
+      "destination_input": "agent_run_id"
+    },
+    {
+      "component_type": "DataFlowEdge",
+      "name": "start_to_apply_patches_data",
+      "source_node": {
+        "$component_ref": "start"
+      },
+      "source_output": "data",
+      "destination_node": {
+        "$component_ref": "apply_patches"
+      },
+      "destination_input": "data"
+    },
+    {
+      "component_type": "DataFlowEdge",
+      "name": "review_gate_reviewResult_to_apply_patches",
+      "source_node": {
+        "$component_ref": "review_gate"
+      },
+      "source_output": "reviewResult",
+      "destination_node": {
+        "$component_ref": "apply_patches"
+      },
+      "destination_input": "reviewResult"
+    },
+    {
+      "component_type": "DataFlowEdge",
+      "name": "apply_patches_to_end_mutatedData",
+      "source_node": {
+        "$component_ref": "apply_patches"
+      },
+      "source_output": "mutatedData",
+      "destination_node": {
+        "$component_ref": "end"
+      },
+      "destination_input": "mutatedData"
+    }
+  ],
+  "$referenced_components": {
+    "start": {
+      "component_type": "StartNode",
+      "id": "start",
+      "name": "Inputs",
+      "metadata": {
+        "cinatra": {
+          "required": [
+            "data",
+            "parentPackageName"
+          ],
+          "hidden": [
+            "cinatra_run_id"
+          ]
+        }
+      },
+      "inputs": [
+        {
+          "title": "data",
+          "type": "object"
+        },
+        {
+          "title": "parentPackageName",
+          "type": "string",
+          "default": ""
+        },
+        {
+          "title": "cinatra_run_id",
+          "type": "string",
+          "default": ""
+        },
+        {
+          "title": "skillIds",
+          "type": "array",
+          "default": []
+        }
+      ]
+    },
+    "resolve_skills": {
+      "component_type": "ApiNode",
+      "id": "resolve_skills",
+      "name": "Resolve skills",
+      "url": "{{CINATRA_BASE_URL}}/api/auditor/run-skills",
+      "http_method": "POST",
+      "data": {
+        "agent_run_id": "{{ agent_run_id }}",
+        "parentPackageName": "{{ parentPackageName }}",
+        "skillIds": "{{ skillIds }}",
+        "data": "{{ data }}",
+        "phase": "resolve"
+      },
+      "inputs": [
+        {
+          "title": "agent_run_id",
+          "type": "string",
+          "default": ""
+        },
+        {
+          "title": "parentPackageName",
+          "type": "string",
+          "default": ""
+        },
+        {
+          "title": "skillIds",
+          "type": "array",
+          "default": []
+        },
+        {
+          "title": "data",
+          "type": "object"
+        }
+      ],
+      "outputs": [
+        {
+          "title": "skillIds",
+          "type": "array"
+        }
+      ],
+      "metadata": {
+        "cinatra": {
+          "riskClass": "read_only",
+          "requiresApproval": false,
+          "packageName": "@cinatra-ai/auditor-agent",
+          "description": "Hybrid resolution (D-02): if input.skillIds is non-empty, use it verbatim; else call skills_installed_resolve_for_agent with parentPackageName."
+        }
+      }
+    },
+    "run_skills": {
+      "component_type": "ApiNode",
+      "id": "run_skills",
+      "name": "Run skills",
+      "url": "{{CINATRA_BASE_URL}}/api/auditor/run-skills",
+      "http_method": "POST",
+      "data": {
+        "agent_run_id": "{{ agent_run_id }}",
+        "parentPackageName": "{{ parentPackageName }}",
+        "skillIds": "{{ skillIds }}",
+        "data": "{{ data }}",
+        "phase": "run"
+      },
+      "inputs": [
+        {
+          "title": "agent_run_id",
+          "type": "string",
+          "default": ""
+        },
+        {
+          "title": "parentPackageName",
+          "type": "string",
+          "default": ""
+        },
+        {
+          "title": "skillIds",
+          "type": "array",
+          "default": []
+        },
+        {
+          "title": "data",
+          "type": "object"
+        }
+      ],
+      "outputs": [],
+      "metadata": {
+        "cinatra": {
+          "riskClass": "read_only",
+          "requiresApproval": false,
+          "packageName": "@cinatra-ai/auditor-agent",
+          "description": "Run skills via @cinatra-ai/llm skill-aware deterministic LLM task; persists structured SuggestionPatch[] (id, fieldPath, op, value, message) to audit_events for out-of-band consumption by the review renderer. No on-flow output — review_gate reads via getAuditDrawerDataAction()."
+        }
+      }
+    },
+    "review_gate": {
+      "component_type": "InputMessageNode",
+      "id": "review_gate",
+      "name": "Review suggestions",
+      "metadata": {
+        "cinatra": {
+          "riskClass": "read_only",
+          "requiresApproval": true,
+          "renderer": "@cinatra-ai/auditor-agent:review",
+          "a2uiSurfaceId": "auditor:review-gate:input",
+          "autoSkipWhenInputsPresent": false,
+          "description": "Review structured suggestions and accept/dismiss before deterministic apply.",
+          "inputMessageSchema": {
+            "type": "object",
+            "x-renderer": "@cinatra-ai/auditor-agent:review",
+            "x-envelope": "json-string",
+            "x-envelope-shape": {
+              "acceptedIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "dismissedIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "properties": {
+              "reviewResult": {
+                "type": "string",
+                "title": "Review result (JSON-encoded { acceptedIds, dismissedIds })"
+              }
+            },
+            "required": [
+              "reviewResult"
+            ]
+          }
+        }
+      },
+      "inputs": [],
+      "outputs": [
+        {
+          "title": "reviewResult",
+          "type": "string"
+        }
+      ]
+    },
+    "apply_patches": {
+      "component_type": "ApiNode",
+      "id": "apply_patches",
+      "name": "Apply accepted patches",
+      "url": "{{CINATRA_BASE_URL}}/api/auditor/apply",
+      "http_method": "POST",
+      "data": {
+        "agent_run_id": "{{ agent_run_id }}",
+        "data": "{{ data }}",
+        "reviewResult": "{{ reviewResult }}"
+      },
+      "inputs": [
+        {
+          "title": "agent_run_id",
+          "type": "string",
+          "default": ""
+        },
+        {
+          "title": "data",
+          "type": "object"
+        },
+        {
+          "title": "reviewResult",
+          "type": "string",
+          "default": ""
+        }
+      ],
+      "outputs": [
+        {
+          "title": "mutatedData",
+          "type": "object"
+        }
+      ],
+      "metadata": {
+        "cinatra": {
+          "riskClass": "write",
+          "requiresApproval": true,
+          "approvalPolicy": "always",
+          "packageName": "@cinatra-ai/auditor-agent",
+          "description": "Deterministic applyAuditorPatches; replay-validates acceptedIds ⊆ persisted suggestions for the agent_run_id."
+        }
+      }
+    },
+    "end": {
+      "component_type": "EndNode",
+      "id": "end",
+      "name": "End",
+      "outputs": [
+        {
+          "title": "mutatedData",
+          "type": "object"
+        }
+      ]
+    }
+  }
+}
