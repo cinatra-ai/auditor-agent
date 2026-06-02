@@ -47,25 +47,31 @@ jobs:
         run: corepack pnpm install --no-frozen-lockfile
 
       - name: Typecheck
-        # Always run a REAL typecheck. `pnpm run --if-present` exits 0 when the
-        # script is absent, so branching on its exit code would silently skip
-        # typechecking for every repo without a `typecheck` script. Branch on
-        # whether the script actually exists instead, and fall back to a direct
-        # `tsc --noEmit` (the standalone tsconfig is shipped with the repo).
+        # Typecheck the repo's OWN TypeScript sources. Branch on what the repo
+        # declares (not on a command's exit code, which `pnpm run --if-present`
+        # makes 0 even when the script is absent). ORDER MATTERS — an explicit
+        # `typecheck` script is authoritative and runs FIRST, so a repo that
+        # declares one can never be skipped, whatever its file extensions:
+        #   - has a `typecheck` script      -> run it (never skipped)
+        #   - else NO tracked TS at all     -> nothing to typecheck. Content-only
+        #     extensions (pure cinatra/** oas.json / SKILL.md / workflow.bpmn) ship
+        #     no TypeScript; `tsc` would error TS18003 "No inputs were found".
+        #     The pathspec covers every TS extension (.ts/.tsx/.mts/.cts).
+        #   - else depends on `typescript`  -> local `tsc --noEmit`
+        #   - else                          -> ephemeral `tsc` via npx (NOT
+        #     `pnpm dlx`, which fails ERR_PNPM_DLX_MULTIPLE_BINS: the typescript
+        #     package ships two bins, tsc + tsserver, and dlx can't disambiguate).
+        # The repo always ships a standalone tsconfig.json, so tsc has config.
         run: |
-          # Always run exactly ONE real typecheck. Branch on what the repo
-          # declares (not on a command's exit code, which `pnpm run --if-present`
-          # makes 0 even when the script is absent):
-          #   - has a `typecheck` script        -> run it
-          #   - else depends on `typescript`    -> local `tsc --noEmit`
-          #   - else                            -> ephemeral `tsc` via dlx
-          # The repo always ships a standalone tsconfig.json, so tsc has config.
           if node -e "process.exit(((require('./package.json').scripts)||{}).typecheck?0:1)"; then
             corepack pnpm run typecheck
+          elif [ -z "$(git ls-files '*.ts' '*.tsx' '*.mts' '*.cts')" ]; then
+            echo "No TypeScript sources tracked — nothing to typecheck (content-only extension)."
+            exit 0
           elif node -e "p=require('./package.json');d={...p.dependencies,...p.devDependencies};process.exit(d.typescript?0:1)"; then
             corepack pnpm exec tsc --noEmit
           else
-            corepack pnpm dlx -p typescript tsc --noEmit
+            npx -y -p typescript tsc --noEmit
           fi
 
       - name: Test
