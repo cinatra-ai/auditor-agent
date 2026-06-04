@@ -8,7 +8,7 @@
     "cinatra": {
       "type": "flow",
       "packageName": "@cinatra-ai/auditor-agent",
-      "packageVersion": "0.1.4",
+      "packageVersion": "0.1.0",
       "docsRef": "docs/developer/wayflow-input-message-node-contract.md",
       "hitlScreens": [
         "@cinatra-ai/auditor-agent:review"
