@@ -1,0 +1,23 @@
+# Dependencies — CI installs fresh; extracted extension repos commit no lockfile
+node_modules/
+pnpm-lock.yaml
+
+# Build output (tsc outDir)
+dist/
+*.tsbuildinfo
+
+# Test coverage
+coverage/
+
+# Logs
+*.log
+
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
