@@ -10,6 +10,14 @@
   "cinatra": {
     "apiVersion": "cinatra.ai/v1",
     "kind": "agent",
-    "dependencies": []
+    "dependencies": [],
+    "fieldRenderers": [
+      {
+        "id": "@cinatra-ai/auditor-agent:review",
+        "kind": "auditor-review",
+        "priority": 80,
+        "midRunHitl": true
+      }
+    ]
   }
 }
