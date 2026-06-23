@@ -1,6 +1,6 @@
 {
   "name": "@cinatra-ai/auditor-agent",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "Apache-2.0",
   "description": "Generic content auditor — runs skill-driven heuristics over a content bundle, surfaces accept/dismiss suggestions through a HITL review surface, and applies accepted patches deterministically.",
   "type": "module",
