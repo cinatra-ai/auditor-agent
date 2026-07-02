@@ -18,6 +18,7 @@
         "priority": 80,
         "midRunHitl": true
       }
-    ]
+    ],
+    "consumes": []
   }
 }
