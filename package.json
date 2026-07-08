@@ -10,6 +10,7 @@
   "cinatra": {
     "apiVersion": "cinatra.ai/v1",
     "kind": "agent",
+    "displayName": "Auditor Agent",
     "dependencies": [],
     "fieldRenderers": [
       {
@@ -19,6 +20,15 @@
         "midRunHitl": true
       }
     ],
-    "consumes": []
+    "consumes": [],
+    "packageType": "agent",
+    "manifestVersion": 1,
+    "sourceTemplateId": "auditor-flow",
+    "sourceVersionId": "d093b14b-2c94-41d9-b3c9-d1642322052e",
+    "sourceVersionNumber": 1,
+    "riskLevel": "low",
+    "hasApprovalGates": true,
+    "toolAccess": [],
+    "ownerOrgId": null
   }
 }
