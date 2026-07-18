@@ -6,7 +6,7 @@ A generic content auditor that improves another agent's output before it ships. 
 
 **Configure:** pass the package name of the parent agent (`parentPackageName`) and, optionally, an explicit list of skill identifiers (`skillIds`). When `skillIds` is empty the agent resolves whichever audit skills are installed for the parent agent automatically.
 
-**Usage:** invoke the Auditor Agent flow with a `data` object (the content bundle produced by your parent agent) and the parent's package name. The agent resolves skills, runs them against the data, pauses at a human review screen so you can accept or dismiss each suggestion, then applies the accepted patches and returns the mutated data bundle.
+**Usage:** invoke the Auditor Agent flow with a `data` object (the content bundle produced by your parent agent) and the parent's package name. The agent resolves skills, runs them against the data, assembles the captured guidance and the generated personal-skill preview into the review payload before it pauses, then pauses at a human review screen so you can accept or dismiss each suggestion. The review screen is a pure display surface — the flow gathers everything it shows before the pause and applies your dismissals afterward. It then applies the accepted patches and returns the mutated data bundle.
 
 **Troubleshooting:** if no suggestions appear, verify that audit skills are installed for the parent agent or pass explicit `skillIds`. If the review screen does not appear, check that the `@cinatra-ai/auditor-agent:review` field renderer is registered in your workspace.
 
