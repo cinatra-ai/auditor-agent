@@ -55,6 +55,9 @@
       "$component_ref": "run_skills"
     },
     {
+      "$component_ref": "edited_gate"
+    },
+    {
       "$component_ref": "prep_list"
     },
     {
@@ -93,13 +96,35 @@
     },
     {
       "component_type": "ControlFlowEdge",
-      "name": "run_skills_to_prep_list",
+      "name": "run_skills_to_edited_gate",
       "from_node": {
         "$component_ref": "run_skills"
       },
       "to_node": {
-        "$component_ref": "prep_list"
+        "$component_ref": "edited_gate"
       }
+    },
+    {
+      "component_type": "ControlFlowEdge",
+      "name": "edited_gate_review_to_prep_list",
+      "from_node": {
+        "$component_ref": "edited_gate"
+      },
+      "to_node": {
+        "$component_ref": "prep_list"
+      },
+      "from_branch": "review"
+    },
+    {
+      "component_type": "ControlFlowEdge",
+      "name": "edited_gate_clean_to_end",
+      "from_node": {
+        "$component_ref": "edited_gate"
+      },
+      "to_node": {
+        "$component_ref": "end"
+      },
+      "from_branch": "default"
     },
     {
       "component_type": "ControlFlowEdge",
@@ -346,6 +371,42 @@
         "$component_ref": "apply_exclusions"
       },
       "destination_input": "agent_run_id"
+    },
+    {
+      "component_type": "DataFlowEdge",
+      "name": "run_skills_edited_to_edited_gate",
+      "source_node": {
+        "$component_ref": "run_skills"
+      },
+      "source_output": "edited",
+      "destination_node": {
+        "$component_ref": "edited_gate"
+      },
+      "destination_input": "edited"
+    },
+    {
+      "component_type": "DataFlowEdge",
+      "name": "start_data_to_end_mutatedData_clean",
+      "source_node": {
+        "$component_ref": "start"
+      },
+      "source_output": "data",
+      "destination_node": {
+        "$component_ref": "end"
+      },
+      "destination_input": "mutatedData"
+    },
+    {
+      "component_type": "DataFlowEdge",
+      "name": "start_to_apply_patches_parentPackageName",
+      "source_node": {
+        "$component_ref": "start"
+      },
+      "source_output": "parentPackageName",
+      "destination_node": {
+        "$component_ref": "apply_patches"
+      },
+      "destination_input": "parentPackageName"
     }
   ],
   "$referenced_components": {
@@ -473,6 +534,10 @@
         {
           "title": "preview",
           "type": "object"
+        },
+        {
+          "title": "edited",
+          "type": "string"
         }
       ],
       "metadata": {
@@ -480,8 +545,33 @@
           "riskClass": "read_only",
           "requiresApproval": false,
           "packageName": "@cinatra-ai/auditor-agent",
-          "description": "Run skills via @cinatra-ai/llm skill-aware deterministic LLM task; persists structured SuggestionPatch[] (id, fieldPath, op, value, message) to audit_events for deterministic apply. Emits the generated personal-skill `preview` on-flow (name/description/content) WITHOUT persisting it — persistence moves to Accept per the #1794 action-boundary ruling. Per the owner per-item-accept ruling (2026-07-19), the preview also carries the proposal `patches` (each an { id, fieldPath, op, message } view of a persisted SuggestionPatch) so the renderer can offer a per-proposal accept/dismiss decision keyed by the same stable ids /api/auditor/apply replay-validates. The review gate reads the preview from this output via a DataFlowEdge; the renderer no longer calls getAuditDrawerDataAction."
+          "description": "Run skills via @cinatra-ai/llm skill-aware deterministic LLM task; persists structured SuggestionPatch[] (id, fieldPath, op, value, message) to audit_events for deterministic apply. Emits the generated personal-skill `preview` on-flow (name/description/content) WITHOUT persisting it \u2014 persistence moves to Accept per the #1794 action-boundary ruling. Per the owner per-item-accept ruling (2026-07-19), the preview also carries the proposal `patches` (each an { id, fieldPath, op, message } view of a persisted SuggestionPatch) so the renderer can offer a per-proposal accept/dismiss decision keyed by the same stable ids /api/auditor/apply replay-validates. The review gate reads the preview from this output via a DataFlowEdge; the renderer no longer calls getAuditDrawerDataAction. Also emits `edited` (\"edited\"|\"clean\"): the host-derived signal of whether the user applied changes to the offered artifact (the run's captured HITL amendment context + object history). The downstream `edited_gate` BranchingNode routes to the review HITL only when edited=\"edited\"; a \"clean\" run skips the gate and completes with mutatedData=data (owner ruled 2026-07-19: no user changes \u2192 no audit HITL)."
         }
+      }
+    },
+    "edited_gate": {
+      "component_type": "BranchingNode",
+      "id": "edited_gate",
+      "name": "Route on user-applied changes",
+      "metadata": {
+        "cinatra": {
+          "purpose": "route-around-the-audit-HITL-when-the-user-applied-no-changes",
+          "description": "Conditional trigger (owner ruling 2026-07-19): the audit review gate fires ONLY when the user applied changes to the artifact the agent offered for review. run_skills derives `edited` host-side from the run's captured HITL amendment context + the artifact's object history; this BranchingNode routes edited=\"edited\" to the review path (prep_list -> review_gate -> apply_exclusions -> apply_patches) and every other value (\"clean\") to the `default` branch straight to end, so a no-user-change run completes with mutatedData=data and NEVER surfaces the audit HITL. BranchingNode is the mount-proven predicate primitive (docker/wayflow test_skip_predicate)."
+        }
+      },
+      "inputs": [
+        {
+          "title": "edited",
+          "type": "string"
+        }
+      ],
+      "outputs": [],
+      "branches": [
+        "default",
+        "review"
+      ],
+      "mapping": {
+        "edited": "review"
       }
     },
     "prep_list": {
@@ -528,7 +618,7 @@
           "renderer": "@cinatra-ai/auditor-agent:review",
           "a2uiSurfaceId": "auditor:review-gate:input",
           "autoSkipWhenInputsPresent": false,
-          "description": "Per-item review (owner per-item-accept ruling, 2026-07-19): the operator decides per PROPOSED CHANGE. The renderer is a pure snapshot->onChange surface — it reads `prompts` (captured guidance) + `preview` (the generated skill preview carrying the proposal patches with stable ids) from the gate snapshot (assembled pre-interrupt) and emits a SINGLE string output `reviewResult`; it calls no host action. Because pyagentspec 26.1.2 `InputMessageNode` yields exactly one string output (`_validate_outputs_have_right_format`), every downstream channel travels inside that one JSON-encoded string — the second `excludedPromptIds` array output was removed (it is unmountable, and not fixable by the #1830 declared-inputs shim, which reconciles inputs only).",
+          "description": "Per-item review (owner per-item-accept ruling, 2026-07-19): the operator decides per PROPOSED CHANGE. The renderer is a pure snapshot->onChange surface \u2014 it reads `prompts` (captured guidance) + `preview` (the generated skill preview carrying the proposal patches with stable ids) from the gate snapshot (assembled pre-interrupt) and emits a SINGLE string output `reviewResult`; it calls no host action. Because pyagentspec 26.1.2 `InputMessageNode` yields exactly one string output (`_validate_outputs_have_right_format`), every downstream channel travels inside that one JSON-encoded string \u2014 the second `excludedPromptIds` array output was removed (it is unmountable, and not fixable by the #1830 declared-inputs shim, which reconciles inputs only).",
           "inputMessageSchema": {
             "type": "object",
             "x-renderer": "@cinatra-ai/auditor-agent:review",
@@ -556,7 +646,7 @@
             "properties": {
               "reviewResult": {
                 "type": "string",
-                "title": "Review result — JSON-encoded { acceptedPatchIds, dismissedPatchIds, excludedPromptIds }. acceptedPatchIds/dismissedPatchIds are the per-item decisions over the proposal (suggestion) ids consumed by /api/auditor/apply; excludedPromptIds are the captured-guidance prompt ids the host exclude companion drops from autosave."
+                "title": "Review result \u2014 JSON-encoded { acceptedPatchIds, dismissedPatchIds, excludedPromptIds }. acceptedPatchIds/dismissedPatchIds are the per-item decisions over the proposal (suggestion) ids consumed by /api/auditor/apply; excludedPromptIds are the captured-guidance prompt ids the host exclude companion drops from autosave."
               }
             },
             "required": [
@@ -616,7 +706,7 @@
           "riskClass": "write",
           "requiresApproval": false,
           "packageName": "@cinatra-ai/auditor-agent",
-          "description": "Post-resume resume-mutation (#1794 + the per-item-accept ruling): the review gate emits ONE string output, so `excludedPromptIds` can no longer ride its own array output — and WayFlow's pyagentspec templating cannot JSON-decode a field out of a string in-graph (no `|fromjson`/`|tojson` filter). The host exclude companion at /api/auditor/exclude therefore JSON-parses the reviewResult envelope, extracts excludedPromptIds, and calls the run-bound agent_run_hitl_prompts_exclude primitive server-side. The primitive validates every id against the run's own (run, declaring-agent) prompt set and rejects the whole batch on any unknown id. Idempotent — a resumed re-run is safe. (Host companion routes to owner review.)"
+          "description": "Post-resume resume-mutation (#1794 + the per-item-accept ruling): the review gate emits ONE string output, so `excludedPromptIds` can no longer ride its own array output \u2014 and WayFlow's pyagentspec templating cannot JSON-decode a field out of a string in-graph (no `|fromjson`/`|tojson` filter). The host exclude companion at /api/auditor/exclude therefore JSON-parses the reviewResult envelope, extracts excludedPromptIds, and calls the run-bound agent_run_hitl_prompts_exclude primitive server-side. The primitive validates every id against the run's own (run, declaring-agent) prompt set and rejects the whole batch on any unknown id. Idempotent \u2014 a resumed re-run is safe. (Host companion routes to owner review.)"
         }
       }
     },
@@ -628,6 +718,7 @@
       "http_method": "POST",
       "data": {
         "agent_run_id": "{{ agent_run_id }}",
+        "parentPackageName": "{{ parentPackageName }}",
         "data": "{{ data }}",
         "reviewResult": "{{ reviewResult }}"
       },
@@ -645,6 +736,11 @@
           "title": "reviewResult",
           "type": "string",
           "default": ""
+        },
+        {
+          "title": "parentPackageName",
+          "type": "string",
+          "default": ""
         }
       ],
       "outputs": [
@@ -659,7 +755,7 @@
           "requiresApproval": true,
           "approvalPolicy": "always",
           "packageName": "@cinatra-ai/auditor-agent",
-          "description": "Deterministic applyAuditorPatches; replay-validates acceptedIds ⊆ persisted suggestions for the agent_run_id."
+          "description": "Deterministic applyAuditorPatches; replay-validates acceptedIds \u2286 persisted suggestions for the agent_run_id. Carries parentPackageName so /api/auditor/apply can persist the accepted per-item skill changes for the parent agent at Accept (owner per-item-accept ruling, 2026-07-19)."
         }
       }
     },
