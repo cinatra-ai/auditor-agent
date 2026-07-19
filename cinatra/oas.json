@@ -325,15 +325,15 @@
     },
     {
       "component_type": "DataFlowEdge",
-      "name": "review_gate_excludedPromptIds_to_apply_exclusions",
+      "name": "review_gate_reviewResult_to_apply_exclusions",
       "source_node": {
         "$component_ref": "review_gate"
       },
-      "source_output": "excludedPromptIds",
+      "source_output": "reviewResult",
       "destination_node": {
         "$component_ref": "apply_exclusions"
       },
-      "destination_input": "excludedPromptIds"
+      "destination_input": "reviewResult"
     },
     {
       "component_type": "DataFlowEdge",
@@ -480,7 +480,7 @@
           "riskClass": "read_only",
           "requiresApproval": false,
           "packageName": "@cinatra-ai/auditor-agent",
-          "description": "Run skills via @cinatra-ai/llm skill-aware deterministic LLM task; persists structured SuggestionPatch[] (id, fieldPath, op, value, message) to audit_events for deterministic apply. Emits the generated personal-skill `preview` on-flow (name/description/content) WITHOUT persisting it — persistence moves to Accept per the #1794 action-boundary ruling. The review gate reads the preview from this output via a DataFlowEdge; the renderer no longer calls getAuditDrawerDataAction."
+          "description": "Run skills via @cinatra-ai/llm skill-aware deterministic LLM task; persists structured SuggestionPatch[] (id, fieldPath, op, value, message) to audit_events for deterministic apply. Emits the generated personal-skill `preview` on-flow (name/description/content) WITHOUT persisting it — persistence moves to Accept per the #1794 action-boundary ruling. Per the owner per-item-accept ruling (2026-07-19), the preview also carries the proposal `patches` (each an { id, fieldPath, op, message } view of a persisted SuggestionPatch) so the renderer can offer a per-proposal accept/dismiss decision keyed by the same stable ids /api/auditor/apply replay-validates. The review gate reads the preview from this output via a DataFlowEdge; the renderer no longer calls getAuditDrawerDataAction."
         }
       }
     },
@@ -528,19 +528,25 @@
           "renderer": "@cinatra-ai/auditor-agent:review",
           "a2uiSurfaceId": "auditor:review-gate:input",
           "autoSkipWhenInputsPresent": false,
-          "description": "Review captured guidance + the generated skill preview and accept/dismiss before deterministic apply. The renderer is a pure snapshot->onChange surface: it reads `prompts` + `preview` from the gate snapshot (assembled pre-interrupt) and emits the resume payload; it calls no host action.",
+          "description": "Per-item review (owner per-item-accept ruling, 2026-07-19): the operator decides per PROPOSED CHANGE. The renderer is a pure snapshot->onChange surface — it reads `prompts` (captured guidance) + `preview` (the generated skill preview carrying the proposal patches with stable ids) from the gate snapshot (assembled pre-interrupt) and emits a SINGLE string output `reviewResult`; it calls no host action. Because pyagentspec 26.1.2 `InputMessageNode` yields exactly one string output (`_validate_outputs_have_right_format`), every downstream channel travels inside that one JSON-encoded string — the second `excludedPromptIds` array output was removed (it is unmountable, and not fixable by the #1830 declared-inputs shim, which reconciles inputs only).",
           "inputMessageSchema": {
             "type": "object",
             "x-renderer": "@cinatra-ai/auditor-agent:review",
             "x-envelope": "json-string",
             "x-envelope-shape": {
-              "acceptedIds": {
+              "acceptedPatchIds": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 }
               },
-              "dismissedIds": {
+              "dismissedPatchIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "excludedPromptIds": {
                 "type": "array",
                 "items": {
                   "type": "string"
@@ -550,14 +556,7 @@
             "properties": {
               "reviewResult": {
                 "type": "string",
-                "title": "Review result (JSON-encoded { acceptedIds, dismissedIds })"
-              },
-              "excludedPromptIds": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                },
-                "title": "Prompt ids the operator dismissed (wired into the post-resume exclude node)"
+                "title": "Review result — JSON-encoded { acceptedPatchIds, dismissedPatchIds, excludedPromptIds }. acceptedPatchIds/dismissedPatchIds are the per-item decisions over the proposal (suggestion) ids consumed by /api/auditor/apply; excludedPromptIds are the captured-guidance prompt ids the host exclude companion drops from autosave."
               }
             },
             "required": [
@@ -581,10 +580,6 @@
         {
           "title": "reviewResult",
           "type": "string"
-        },
-        {
-          "title": "excludedPromptIds",
-          "type": "array"
         }
       ]
     },
@@ -592,20 +587,17 @@
       "component_type": "ApiNode",
       "id": "apply_exclusions",
       "name": "Exclude dismissed prompts",
-      "url": "{{CINATRA_BASE_URL}}/api/agents/passthrough",
+      "url": "{{CINATRA_BASE_URL}}/api/auditor/exclude",
       "http_method": "POST",
       "data": {
-        "tool": "agent_run_hitl_prompts_exclude",
-        "input": {
-          "ids": "{{ excludedPromptIds }}"
-        },
-        "agent_run_id": "{{ agent_run_id }}"
+        "agent_run_id": "{{ agent_run_id }}",
+        "reviewResult": "{{ reviewResult }}"
       },
       "inputs": [
         {
-          "title": "excludedPromptIds",
-          "type": "array",
-          "default": []
+          "title": "reviewResult",
+          "type": "string",
+          "default": ""
         },
         {
           "title": "agent_run_id",
@@ -624,7 +616,7 @@
           "riskClass": "write",
           "requiresApproval": false,
           "packageName": "@cinatra-ai/auditor-agent",
-          "description": "Post-resume resume-mutation (#1794): batch, idempotent exclusion of the operator-dismissed prompts via agent_run_hitl_prompts_exclude. The ids are wired from the resume payload (review_gate.excludedPromptIds); the primitive validates every id against the run's own (run, declaring-agent) prompt set and rejects the whole batch on any unknown id. Idempotent — a resumed re-run is safe."
+          "description": "Post-resume resume-mutation (#1794 + the per-item-accept ruling): the review gate emits ONE string output, so `excludedPromptIds` can no longer ride its own array output — and WayFlow's pyagentspec templating cannot JSON-decode a field out of a string in-graph (no `|fromjson`/`|tojson` filter). The host exclude companion at /api/auditor/exclude therefore JSON-parses the reviewResult envelope, extracts excludedPromptIds, and calls the run-bound agent_run_hitl_prompts_exclude primitive server-side. The primitive validates every id against the run's own (run, declaring-agent) prompt set and rejects the whole batch on any unknown id. Idempotent — a resumed re-run is safe. (Host companion routes to owner review.)"
         }
       }
     },
