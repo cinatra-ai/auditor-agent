@@ -5,8 +5,30 @@
   "description": "Generic content auditor — runs skill-driven heuristics over a content bundle, surfaces accept/dismiss suggestions through a HITL review surface, and applies accepted patches deterministically.",
   "type": "module",
   "files": [
-    "cinatra/**"
+    "cinatra",
+    "src",
+    "!src/__tests__"
   ],
+  "scripts": {
+    "test": "vitest"
+  },
+  "dependencies": {
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.20.0",
+    "radix-ui": "^1.6.0",
+    "tailwind-merge": "^3.6.0"
+  },
+  "peerDependencies": {
+    "@cinatra-ai/sdk-ui": "*",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "peerDependenciesMeta": {
+    "@cinatra-ai/sdk-ui": {
+      "optional": true
+    }
+  },
   "cinatra": {
     "apiVersion": "cinatra.ai/v1",
     "kind": "agent",
@@ -17,10 +39,23 @@
         "id": "@cinatra-ai/auditor-agent:review",
         "kind": "auditor-review",
         "priority": 80,
-        "midRunHitl": true
+        "midRunHitl": true,
+        "component": {
+          "entry": "./src/auditor-review-renderer.tsx",
+          "propsApiVersion": 1
+        }
       }
     ],
-    "consumes": [],
+    "consumes": [
+      {
+        "primitive": "agent_run_hitl_prompts_list",
+        "requirement": "required"
+      },
+      {
+        "primitive": "agent_run_hitl_prompts_exclude",
+        "requirement": "required"
+      }
+    ],
     "packageType": "agent",
     "manifestVersion": 1,
     "sourceTemplateId": "auditor-flow",

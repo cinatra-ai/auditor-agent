@@ -55,7 +55,13 @@
       "$component_ref": "run_skills"
     },
     {
+      "$component_ref": "prep_list"
+    },
+    {
       "$component_ref": "review_gate"
+    },
+    {
+      "$component_ref": "apply_exclusions"
     },
     {
       "$component_ref": "apply_patches"
@@ -87,9 +93,19 @@
     },
     {
       "component_type": "ControlFlowEdge",
-      "name": "run_skills_to_review_gate",
+      "name": "run_skills_to_prep_list",
       "from_node": {
         "$component_ref": "run_skills"
+      },
+      "to_node": {
+        "$component_ref": "prep_list"
+      }
+    },
+    {
+      "component_type": "ControlFlowEdge",
+      "name": "prep_list_to_review_gate",
+      "from_node": {
+        "$component_ref": "prep_list"
       },
       "to_node": {
         "$component_ref": "review_gate"
@@ -97,9 +113,19 @@
     },
     {
       "component_type": "ControlFlowEdge",
-      "name": "review_gate_to_apply_patches",
+      "name": "review_gate_to_apply_exclusions",
       "from_node": {
         "$component_ref": "review_gate"
+      },
+      "to_node": {
+        "$component_ref": "apply_exclusions"
+      }
+    },
+    {
+      "component_type": "ControlFlowEdge",
+      "name": "apply_exclusions_to_apply_patches",
+      "from_node": {
+        "$component_ref": "apply_exclusions"
       },
       "to_node": {
         "$component_ref": "apply_patches"
@@ -260,6 +286,66 @@
         "$component_ref": "end"
       },
       "destination_input": "mutatedData"
+    },
+    {
+      "component_type": "DataFlowEdge",
+      "name": "start_to_prep_list_agent_run_id",
+      "source_node": {
+        "$component_ref": "start"
+      },
+      "source_output": "cinatra_run_id",
+      "destination_node": {
+        "$component_ref": "prep_list"
+      },
+      "destination_input": "agent_run_id"
+    },
+    {
+      "component_type": "DataFlowEdge",
+      "name": "prep_list_prompts_to_review_gate",
+      "source_node": {
+        "$component_ref": "prep_list"
+      },
+      "source_output": "prompts",
+      "destination_node": {
+        "$component_ref": "review_gate"
+      },
+      "destination_input": "prompts"
+    },
+    {
+      "component_type": "DataFlowEdge",
+      "name": "run_skills_preview_to_review_gate",
+      "source_node": {
+        "$component_ref": "run_skills"
+      },
+      "source_output": "preview",
+      "destination_node": {
+        "$component_ref": "review_gate"
+      },
+      "destination_input": "preview"
+    },
+    {
+      "component_type": "DataFlowEdge",
+      "name": "review_gate_excludedPromptIds_to_apply_exclusions",
+      "source_node": {
+        "$component_ref": "review_gate"
+      },
+      "source_output": "excludedPromptIds",
+      "destination_node": {
+        "$component_ref": "apply_exclusions"
+      },
+      "destination_input": "excludedPromptIds"
+    },
+    {
+      "component_type": "DataFlowEdge",
+      "name": "start_to_apply_exclusions_agent_run_id",
+      "source_node": {
+        "$component_ref": "start"
+      },
+      "source_output": "cinatra_run_id",
+      "destination_node": {
+        "$component_ref": "apply_exclusions"
+      },
+      "destination_input": "agent_run_id"
     }
   ],
   "$referenced_components": {
@@ -383,13 +469,51 @@
           "type": "object"
         }
       ],
-      "outputs": [],
+      "outputs": [
+        {
+          "title": "preview",
+          "type": "object"
+        }
+      ],
       "metadata": {
         "cinatra": {
           "riskClass": "read_only",
           "requiresApproval": false,
           "packageName": "@cinatra-ai/auditor-agent",
-          "description": "Run skills via @cinatra-ai/llm skill-aware deterministic LLM task; persists structured SuggestionPatch[] (id, fieldPath, op, value, message) to audit_events for out-of-band consumption by the review renderer. No on-flow output — review_gate reads via getAuditDrawerDataAction()."
+          "description": "Run skills via @cinatra-ai/llm skill-aware deterministic LLM task; persists structured SuggestionPatch[] (id, fieldPath, op, value, message) to audit_events for deterministic apply. Emits the generated personal-skill `preview` on-flow (name/description/content) WITHOUT persisting it — persistence moves to Accept per the #1794 action-boundary ruling. The review gate reads the preview from this output via a DataFlowEdge; the renderer no longer calls getAuditDrawerDataAction."
+        }
+      }
+    },
+    "prep_list": {
+      "component_type": "ApiNode",
+      "id": "prep_list",
+      "name": "Assemble HITL payload",
+      "url": "{{CINATRA_BASE_URL}}/api/agents/passthrough",
+      "http_method": "POST",
+      "data": {
+        "tool": "agent_run_hitl_prompts_list",
+        "input": {},
+        "agent_run_id": "{{ agent_run_id }}"
+      },
+      "inputs": [
+        {
+          "title": "agent_run_id",
+          "type": "string",
+          "default": ""
+        }
+      ],
+      "outputs": [
+        {
+          "title": "prompts",
+          "type": "array"
+        }
+      ],
+      "metadata": {
+        "cinatra": {
+          "riskClass": "read_only",
+          "requiresApproval": false,
+          "packageName": "@cinatra-ai/auditor-agent",
+          "description": "Deterministic pre-interrupt seam (#1794): run-scoped snapshot of the run's captured HITL amendment prompts via agent_run_hitl_prompts_list. Run + actor derive from the auth-injected context frame route-side; agent_run_id is bound + verified there and is NOT trusted as the scope. Output wired into review_gate.prompts."
         }
       }
     },
@@ -404,7 +528,7 @@
           "renderer": "@cinatra-ai/auditor-agent:review",
           "a2uiSurfaceId": "auditor:review-gate:input",
           "autoSkipWhenInputsPresent": false,
-          "description": "Review structured suggestions and accept/dismiss before deterministic apply.",
+          "description": "Review captured guidance + the generated skill preview and accept/dismiss before deterministic apply. The renderer is a pure snapshot->onChange surface: it reads `prompts` + `preview` from the gate snapshot (assembled pre-interrupt) and emits the resume payload; it calls no host action.",
           "inputMessageSchema": {
             "type": "object",
             "x-renderer": "@cinatra-ai/auditor-agent:review",
@@ -427,6 +551,13 @@
               "reviewResult": {
                 "type": "string",
                 "title": "Review result (JSON-encoded { acceptedIds, dismissedIds })"
+              },
+              "excludedPromptIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "title": "Prompt ids the operator dismissed (wired into the post-resume exclude node)"
               }
             },
             "required": [
@@ -435,13 +566,67 @@
           }
         }
       },
-      "inputs": [],
+      "inputs": [
+        {
+          "title": "prompts",
+          "type": "array",
+          "default": []
+        },
+        {
+          "title": "preview",
+          "type": "object"
+        }
+      ],
       "outputs": [
         {
           "title": "reviewResult",
           "type": "string"
+        },
+        {
+          "title": "excludedPromptIds",
+          "type": "array"
         }
       ]
+    },
+    "apply_exclusions": {
+      "component_type": "ApiNode",
+      "id": "apply_exclusions",
+      "name": "Exclude dismissed prompts",
+      "url": "{{CINATRA_BASE_URL}}/api/agents/passthrough",
+      "http_method": "POST",
+      "data": {
+        "tool": "agent_run_hitl_prompts_exclude",
+        "input": {
+          "ids": "{{ excludedPromptIds }}"
+        },
+        "agent_run_id": "{{ agent_run_id }}"
+      },
+      "inputs": [
+        {
+          "title": "excludedPromptIds",
+          "type": "array",
+          "default": []
+        },
+        {
+          "title": "agent_run_id",
+          "type": "string",
+          "default": ""
+        }
+      ],
+      "outputs": [
+        {
+          "title": "applied",
+          "type": "integer"
+        }
+      ],
+      "metadata": {
+        "cinatra": {
+          "riskClass": "write",
+          "requiresApproval": false,
+          "packageName": "@cinatra-ai/auditor-agent",
+          "description": "Post-resume resume-mutation (#1794): batch, idempotent exclusion of the operator-dismissed prompts via agent_run_hitl_prompts_exclude. The ids are wired from the resume payload (review_gate.excludedPromptIds); the primitive validates every id against the run's own (run, declaring-agent) prompt set and rejects the whole batch on any unknown id. Idempotent — a resumed re-run is safe."
+        }
+      }
     },
     "apply_patches": {
       "component_type": "ApiNode",
