@@ -61,6 +61,9 @@
       "$component_ref": "prep_list"
     },
     {
+      "$component_ref": "emit_review_payload"
+    },
+    {
       "$component_ref": "review_gate"
     },
     {
@@ -128,9 +131,19 @@
     },
     {
       "component_type": "ControlFlowEdge",
-      "name": "prep_list_to_review_gate",
+      "name": "prep_list_to_emit_review_payload",
       "from_node": {
         "$component_ref": "prep_list"
+      },
+      "to_node": {
+        "$component_ref": "emit_review_payload"
+      }
+    },
+    {
+      "component_type": "ControlFlowEdge",
+      "name": "emit_review_payload_to_review_gate",
+      "from_node": {
+        "$component_ref": "emit_review_payload"
       },
       "to_node": {
         "$component_ref": "review_gate"
@@ -326,25 +339,25 @@
     },
     {
       "component_type": "DataFlowEdge",
-      "name": "prep_list_prompts_to_review_gate",
+      "name": "prep_list_prompts_to_emit_review_payload",
       "source_node": {
         "$component_ref": "prep_list"
       },
       "source_output": "prompts",
       "destination_node": {
-        "$component_ref": "review_gate"
+        "$component_ref": "emit_review_payload"
       },
       "destination_input": "prompts"
     },
     {
       "component_type": "DataFlowEdge",
-      "name": "run_skills_preview_to_review_gate",
+      "name": "run_skills_preview_to_emit_review_payload",
       "source_node": {
         "$component_ref": "run_skills"
       },
       "source_output": "preview",
       "destination_node": {
-        "$component_ref": "review_gate"
+        "$component_ref": "emit_review_payload"
       },
       "destination_input": "preview"
     },
@@ -545,7 +558,7 @@
           "riskClass": "read_only",
           "requiresApproval": false,
           "packageName": "@cinatra-ai/auditor-agent",
-          "description": "Run skills via @cinatra-ai/llm skill-aware deterministic LLM task; persists structured SuggestionPatch[] (id, fieldPath, op, value, message) to audit_events for deterministic apply. Emits the generated personal-skill `preview` on-flow (name/description/content) WITHOUT persisting it \u2014 persistence moves to Accept per the #1794 action-boundary ruling. Per the owner per-item-accept ruling (2026-07-19), the preview also carries the proposal `patches` (each an { id, fieldPath, op, message } view of a persisted SuggestionPatch) so the renderer can offer a per-proposal accept/dismiss decision keyed by the same stable ids /api/auditor/apply replay-validates. The review gate reads the preview from this output via a DataFlowEdge; the renderer no longer calls getAuditDrawerDataAction. Also emits `edited` (\"edited\"|\"clean\"): the host-derived signal of whether the user applied changes to the offered artifact (the run's captured HITL amendment context + object history). The downstream `edited_gate` BranchingNode routes to the review HITL only when edited=\"edited\"; a \"clean\" run skips the gate and completes with mutatedData=data (owner ruled 2026-07-19: no user changes \u2192 no audit HITL)."
+          "description": "Run skills via @cinatra-ai/llm skill-aware deterministic LLM task; persists structured SuggestionPatch[] (id, fieldPath, op, value, message) to audit_events for deterministic apply. Emits the generated personal-skill `preview` on-flow (name/description/content) WITHOUT persisting it \u2014 persistence moves to Accept per the #1794 action-boundary ruling. Per the owner per-item-accept ruling (2026-07-19), the preview also carries the proposal `patches` (each an { id, fieldPath, op, message } view of a persisted SuggestionPatch) so the renderer can offer a per-proposal accept/dismiss decision keyed by the same stable ids /api/auditor/apply replay-validates. The preview is wired into emit_review_payload.preview (which renders it into the review payload the gate renderer reads — #33); the renderer no longer calls getAuditDrawerDataAction. Also emits `edited` (\"edited\"|\"clean\"): the host-derived signal of whether the user applied changes to the offered artifact (the run's captured HITL amendment context + object history). The downstream `edited_gate` BranchingNode routes to the review HITL only when edited=\"edited\"; a \"clean\" run skips the gate and completes with mutatedData=data (owner ruled 2026-07-19: no user changes \u2192 no audit HITL)."
         }
       }
     },
@@ -603,7 +616,36 @@
           "riskClass": "read_only",
           "requiresApproval": false,
           "packageName": "@cinatra-ai/auditor-agent",
-          "description": "Deterministic pre-interrupt seam (#1794): run-scoped snapshot of the run's captured HITL amendment prompts via agent_run_hitl_prompts_list. Run + actor derive from the auth-injected context frame route-side; agent_run_id is bound + verified there and is NOT trusted as the scope. Output wired into review_gate.prompts."
+          "description": "Deterministic pre-interrupt seam (#1794): run-scoped snapshot of the run's captured HITL amendment prompts via agent_run_hitl_prompts_list. Run + actor derive from the auth-injected context frame route-side; agent_run_id is bound + verified there and is NOT trusted as the scope. Output wired into emit_review_payload.prompts (which renders it into the review payload the gate renderer reads — #33)."
+        }
+      }
+    },
+    "emit_review_payload": {
+      "component_type": "OutputMessageNode",
+      "id": "emit_review_payload",
+      "name": "Emit review payload as agent message",
+      "inputs": [
+        {
+          "title": "prompts",
+          "type": "array",
+          "json_schema": {
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        {
+          "title": "preview",
+          "type": "object"
+        }
+      ],
+      "message": "{# pyagentspec-input-hint (do not remove): {{ prompts }} {{ preview }} #}{\"prompts\":{{ prompts | tojson }},\"preview\":{{ preview | tojson }}}",
+      "metadata": {
+        "cinatra": {
+          "riskClass": "read_only",
+          "requiresApproval": false,
+          "packageName": "@cinatra-ai/auditor-agent",
+          "description": "Pre-interrupt review-payload assembly (#33). An InputMessageNode gate interrupt carries NO structured channel for its DataFlowEdge-delivered inputs on the pinned runtime (pyagentspec/wayflowcore 26.1.2): the A2A UserMessageRequestStatus carries only the node's rendered message, and the host `__cinatra_endnode_outputs__` DataPart surfaces resolved values ONLY at FinishedStatus, never at input-required. So the prep_list `prompts` + run_skills `preview` DataFlowEdges are wired HERE and rendered as a single plain-JSON agent message via the `| tojson` filter. That message becomes the last agent message the host reads at interrupt (`execution.ts handleWayflowTaskState` -> `spreadFromOutput`), which spreads `{ prompts, preview }` into the renderer value the `@cinatra-ai/auditor-agent:review` renderer reads. Mirrors the proven context-selection-agent `emit_context_payload` presentational-renderer pattern. The leading `{# pyagentspec-input-hint #}` Jinja comment carries the bare `{{ prompts }} {{ preview }}` placeholders so pyagentspec infers these two inputs from the message; the comment renders to the empty string."
         }
       }
     },
@@ -618,7 +660,7 @@
           "renderer": "@cinatra-ai/auditor-agent:review",
           "a2uiSurfaceId": "auditor:review-gate:input",
           "autoSkipWhenInputsPresent": false,
-          "description": "Per-item review (owner per-item-accept ruling, 2026-07-19): the operator decides per PROPOSED CHANGE. The renderer is a pure snapshot->onChange surface \u2014 it reads `prompts` (captured guidance) + `preview` (the generated skill preview carrying the proposal patches with stable ids) from the gate snapshot (assembled pre-interrupt) and emits a SINGLE string output `reviewResult`; it calls no host action. Because pyagentspec 26.1.2 `InputMessageNode` yields exactly one string output (`_validate_outputs_have_right_format`), every downstream channel travels inside that one JSON-encoded string \u2014 the second `excludedPromptIds` array output was removed (it is unmountable, and not fixable by the #1830 declared-inputs shim, which reconciles inputs only).",
+          "description": "Per-item review (owner per-item-accept ruling, 2026-07-19): the operator decides per PROPOSED CHANGE. The renderer is a pure snapshot->onChange surface \u2014 it reads `prompts` (captured guidance) + `preview` (the generated skill preview carrying the proposal patches with stable ids) from the renderer value the host assembles at interrupt, and emits a SINGLE string output `reviewResult`; it calls no host action. This gate declares NO inputs by design (#33): an InputMessageNode interrupt cannot carry DataFlowEdge-delivered inputs across the A2A boundary on the pinned runtime, so the review payload is assembled by the preceding `emit_review_payload` OutputMessageNode and reaches the renderer as the last agent message (`execution.ts handleWayflowTaskState` -> `spreadFromOutput` spreads `{ prompts, preview }` into the renderer value). Keeping the gate inputless also keeps the #1830 loader shim from rewriting it. Because pyagentspec 26.1.2 `InputMessageNode` yields exactly one string output (`_validate_outputs_have_right_format`), every downstream channel travels inside that one JSON-encoded string \u2014 the second `excludedPromptIds` array output was removed (it is unmountable, and not fixable by the #1830 declared-inputs shim, which reconciles inputs only).",
           "inputMessageSchema": {
             "type": "object",
             "x-renderer": "@cinatra-ai/auditor-agent:review",
@@ -655,17 +697,6 @@
           }
         }
       },
-      "inputs": [
-        {
-          "title": "prompts",
-          "type": "array",
-          "default": []
-        },
-        {
-          "title": "preview",
-          "type": "object"
-        }
-      ],
       "outputs": [
         {
           "title": "reviewResult",
