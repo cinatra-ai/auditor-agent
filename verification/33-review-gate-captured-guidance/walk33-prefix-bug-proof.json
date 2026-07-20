@@ -1,0 +1,16 @@
+{
+  "out": {
+    "LABEL": "prefix-bug",
+    "runId": "24ac878c-8e9f-404c-ada1-717a8b85be71",
+    "sawPending": true,
+    "capturedGuidanceText": "Captured guidance (0)",
+    "capturedCount": 0,
+    "renderedPrompts": []
+  },
+  "log": [
+    "[2026-07-20T02:45:09.626Z] [prefix-bug] run 24ac878c-8e9f-404c-ada1-717a8b85be71 + 2 prompts",
+    "[2026-07-20T02:45:12.215Z] [prefix-bug] enqueued",
+    "[2026-07-20T02:45:21.797Z] [prefix-bug] renderer visible",
+    "[2026-07-20T02:45:21.872Z] [prefix-bug] header=\"Captured guidance (0)\" count=0 renderedPrompts=0"
+  ]
+}

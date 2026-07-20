@@ -1,0 +1,67 @@
+{
+  "proof": {
+    "editedRun": "f188df4e-ea5d-433a-b7d1-4a162b901dd6",
+    "promptIds": [
+      "5b18a10d-09e6-4b54-94e0-90b3c8182314",
+      "c909f6d8-22c0-414c-ba95-aa41c4144000"
+    ],
+    "edited_sawPending": true,
+    "edited_status": "pending_approval",
+    "edited_snapshot_edited": "edited",
+    "edited_prompts_in_db": [
+      {
+        "stepKey": "wayflow-gate-1",
+        "message": "Tighten the executive summary.",
+        "excluded": false
+      },
+      {
+        "stepKey": "wayflow-gate-2",
+        "message": "Drop the appendix.",
+        "excluded": false
+      }
+    ],
+    "reviewCardVisible": true,
+    "capturedGuidanceText": "Captured guidance (2)",
+    "capturedCount": 2,
+    "renderedPrompts": [
+      {
+        "stepKey": "wayflow-gate-1",
+        "message": "Tighten the executive summary."
+      },
+      {
+        "stepKey": "wayflow-gate-2",
+        "message": "Drop the appendix."
+      }
+    ],
+    "cleanRun": "8fc5357b-fcd9-464f-a28c-f30fe6cdd0c5",
+    "clean_status": "completed",
+    "clean_error": null,
+    "clean_snapshot_edited": "clean",
+    "clean_sawPending": false,
+    "PASS_EDITED": true,
+    "PASS_CLEAN": true
+  },
+  "log": [
+    "[2026-07-20T02:26:19.620Z] actor userId=wwOdmlqxWdV0kugcgqQQlOi9HdSv84mY orgId=sYxJ178P8PFkDKjyroOGNkpufR5P5MSy template=3dc191f8-ab48-4dbe-84b7-443f0433597a ver=0.1.1",
+    "[2026-07-20T02:26:20.748Z] prewarm agent-detail component",
+    "[2026-07-20T02:27:52.151Z] EDITED run f188df4e-ea5d-433a-b7d1-4a162b901dd6 seeded + 2 amendment prompts",
+    "[2026-07-20T02:27:52.305Z] enqueued EDITED f188df4e-ea5d-433a-b7d1-4a162b901dd6",
+    "[2026-07-20T02:28:01.521Z] screenshot /Users/ordnas/Code/cinatra-ai/.claude/scratch/auditor-33-walk/evidence/walk33-01-dispatched.png",
+    "[2026-07-20T02:28:01.578Z] [f188df4e] status -> running",
+    "[2026-07-20T02:28:10.175Z] screenshot /Users/ordnas/Code/cinatra-ai/.claude/scratch/auditor-33-walk/evidence/walk33-02-running.png",
+    "[2026-07-20T02:29:10.215Z] [f188df4e] status -> pending_approval",
+    "[2026-07-20T02:29:37.955Z] screenshot /Users/ordnas/Code/cinatra-ai/.claude/scratch/auditor-33-walk/evidence/walk33-03-pending_approval.png",
+    "[2026-07-20T02:29:40.528Z] renderer: 'Review proposed changes' visible",
+    "[2026-07-20T02:29:41.546Z] renderer header: \"Captured guidance (2)\" -> count=2",
+    "[2026-07-20T02:29:41.556Z] rendered prompts (normalized value): [{\"stepKey\":\"wayflow-gate-1\",\"message\":\"Tighten the executive summary.\"},{\"stepKey\":\"wayflow-gate-2\",\"message\":\"Drop the appendix.\"}]",
+    "[2026-07-20T02:29:41.658Z] screenshot /Users/ordnas/Code/cinatra-ai/.claude/scratch/auditor-33-walk/evidence/walk33-04-captured-guidance.png",
+    "[2026-07-20T02:29:41.748Z] screenshot /Users/ordnas/Code/cinatra-ai/.claude/scratch/auditor-33-walk/evidence/walk33-review-card.png",
+    "[2026-07-20T02:29:41.921Z] EDITED db: status=pending_approval edited=edited promptsInDb=2",
+    "[2026-07-20T02:29:42.091Z] CLEAN run 8fc5357b-fcd9-464f-a28c-f30fe6cdd0c5 seeded (0 prompts)",
+    "[2026-07-20T02:29:42.284Z] enqueued CLEAN 8fc5357b-fcd9-464f-a28c-f30fe6cdd0c5",
+    "[2026-07-20T02:29:42.404Z] [8fc5357b] status -> queued",
+    "[2026-07-20T02:29:44.505Z] [8fc5357b] status -> running",
+    "[2026-07-20T02:29:48.616Z] [8fc5357b] status -> completed",
+    "[2026-07-20T02:29:48.654Z] CLEAN db: status=completed error=null edited=clean sawPending=false"
+  ]
+}
